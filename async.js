@@ -10,7 +10,7 @@ exports.runParallel = runParallel;
  * @returns {Promise}
  */
 function runParallel(jobs, parallelNum, timeout = 1000) {
-    const jobsQueue = jobs
+    const jobsStack = jobs
         .map((job, ind) => [ind, _waitFor(job, timeout)])
         .reverse();
     const results = [];
@@ -26,13 +26,13 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
     }
 
     function launchNewJobs(resolve) {
-        if (finishedCount === totalJobsCount) {
+        if (finishedCount === totalJobsCount || !jobsStack.length) {
             resolve(results);
 
             return;
         }
-        while (pendingCount < parallelNum && jobsQueue.length) {
-            const [index, job] = jobsQueue.pop();
+        while (pendingCount < parallelNum && jobsStack.length) {
+            const [index, job] = jobsStack.pop();
             const handler = outcome => onJobFinish(outcome, index, resolve);
             job.then(handler)
                 .catch(handler);
