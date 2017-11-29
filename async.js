@@ -34,7 +34,8 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
         while (pendingCount < parallelNum && jobsQueue.length) {
             const [index, job] = jobsQueue.pop();
             const handler = outcome => onJobFinish(outcome, index, resolve);
-            job.then(handler, handler);
+            job.then(handler)
+                .catch(handler);
             pendingCount += 1;
         }
     }
