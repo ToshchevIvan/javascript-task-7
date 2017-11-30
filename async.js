@@ -43,7 +43,8 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
 
 function _waitFor(promise, timeout) {
     return new Promise((resolve, reject) => {
-        promise.then(resolve, reject);
+        promise.then(resolve)
+            .catch(reject);
         setTimeout(() => reject(new Error('Promise timeout')), timeout);
     });
 }
