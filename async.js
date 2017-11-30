@@ -10,42 +10,38 @@ exports.runParallel = runParallel;
  * @returns {Promise}
  */
 function runParallel(jobs, parallelNum, timeout = 1000) {
-    const jobsStack = jobs
-        .map((job, ind) => [ind, _waitFor(job, timeout)])
-        .reverse();
+    const jobsStack = jobs.map((j, index) => [index, _waitFor(j, timeout)]);
     const results = [];
-    const totalJobsCount = jobs.length;
-    let pendingCount = 0;
+    let launchedCount = 0;
     let finishedCount = 0;
 
-    function onJobFinish(outcome, jobIndex, resolve) {
+    function onJobFinished(outcome, jobIndex, resolve) {
         results[jobIndex] = outcome;
         finishedCount += 1;
-        pendingCount -= 1;
-        launchNewJobs(resolve);
+        launchJobs(resolve);
     }
 
-    function launchNewJobs(resolve) {
-        if (finishedCount === totalJobsCount || !jobsStack.length) {
+    function launchJobs(resolve) {
+        if (finishedCount === jobs.length || parallelNum <= 0) {
             resolve(results);
 
             return;
         }
-        while (pendingCount < parallelNum && jobsStack.length) {
+        while (launchedCount - finishedCount < parallelNum && jobsStack.length) {
             const [index, job] = jobsStack.pop();
-            const handler = outcome => onJobFinish(outcome, index, resolve);
+            const handler = outcome => onJobFinished(outcome, index, resolve);
+            launchedCount += 1;
             job.then(handler)
                 .catch(handler);
-            pendingCount += 1;
         }
     }
 
-    return new Promise(resolve => launchNewJobs(resolve));
+    return new Promise(launchJobs);
 }
 
-function _waitFor(promise, timeout) {
+function _waitFor(job, timeout) {
     return new Promise((resolve, reject) => {
-        promise().then(resolve, reject);
-        setTimeout(() => reject(new Error('Promise timeout')), timeout);
+        job().then(resolve, reject);
+        setTimeout(() => reject(new Error('Promise timeout')), timeout < 0 ? 0 : timeout);
     });
 }
