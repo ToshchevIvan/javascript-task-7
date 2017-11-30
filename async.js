@@ -10,22 +10,22 @@ exports.runParallel = runParallel;
  * @returns {Promise}
  */
 function runParallel(jobs, parallelNum, timeout = 1000) {
-    const jobsStack = jobs.map(jobFabric => jobFabric())
+    const jobsQueue = jobs.map(jobFabric => jobFabric())
         .map((promise, index) => [index, _waitFor(promise, timeout)]);
     const results = [];
     let finishedCount = 0;
 
     function onJobFinish(outcome, jobIndex, resolve) {
-        finishedCount += 1;
         results[jobIndex] = outcome;
+        finishedCount += 1;
         launchNextJob(resolve);
     }
 
     function launchNextJob(resolve) {
         if (finishedCount === jobs.length) {
             resolve(results);
-        } else if (jobsStack.length) {
-            const [index, job] = jobsStack.pop();
+        } else if (jobsQueue.length) {
+            const [index, job] = jobsQueue.shift();
             const handler = outcome => onJobFinish(outcome, index, resolve);
             job.then(handler)
                 .catch(handler);
@@ -33,13 +33,19 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
     }
 
     return new Promise(resolve => {
-        [...Array(parallelNum)].forEach(() => launchNextJob(resolve));
+        if (parallelNum > 0) {
+            [...Array(parallelNum)].forEach(() => launchNextJob(resolve));
+        } else {
+            resolve([]);
+        }
     });
 }
 
 function _waitFor(promise, timeout) {
     return new Promise((resolve, reject) => {
         promise.then(resolve, reject);
-        setTimeout(() => reject(new Error('Promise timeout')), timeout < 0 ? 0 : timeout);
+        setTimeout(() => reject(new Error('Promise timeout')), timeout);
     });
 }
+
+
